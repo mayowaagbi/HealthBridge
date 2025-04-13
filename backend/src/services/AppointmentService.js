@@ -280,6 +280,14 @@ class AppointmentService {
       throw new ApiError(500, "Failed to fetch appointments");
     }
   }
+  async getsupportbyappoinmentid(id) {
+    try {
+      return await Appointment.getsupportbyappoinmentid(id);
+    } catch (error) {
+      console.error("Failed to fetch appointments:", error);
+      throw new ApiError(500, "Failed to fetch appointments");
+    }
+  }
 }
 
 module.exports = new AppointmentService();

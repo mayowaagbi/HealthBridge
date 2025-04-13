@@ -1,6 +1,6 @@
-// QrCodeScannerPortal.tsx
-import React, { useState, useEffect } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import axios from "axios";
+import { Html5QrcodeScanner, Html5QrcodeScanType } from "html5-qrcode";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -21,28 +21,25 @@ import {
 import { Badge } from "../../components/ui/badge";
 import { Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
-// Types based on your Prisma schema
+import { motion } from "framer-motion";
+import api from "../../api";
+
 interface Appointment {
   id: string;
   studentId: string;
   providerId: string | null;
   supportId: string | null;
-  startTime: Date;
+  startTime: string;
   duration: number;
   service: string;
-  status:
-    | "PENDING"
-    | "CONFIRMED"
-    | "DENIED"
-    | "CANCELLED"
-    | "RESCHEDULED"
-    | "MISSED";
+  status: string;
   priority: number;
   location: string | null;
   notes: string | null;
+  checkedIn: boolean;
+  checkedInAt: string | null;
   student: StudentDetails;
   provider?: ProviderDetails;
-  support?: SupportDetails;
 }
 
 interface StudentDetails {
@@ -61,11 +58,6 @@ interface ProviderDetails {
   profile: Profile;
 }
 
-interface SupportDetails {
-  id: string;
-  profile: Profile;
-}
-
 interface CheckInResult {
   success: boolean;
   message: string;
@@ -77,144 +69,134 @@ const QrCodeScannerPortal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
   const [processingCheckIn, setProcessingCheckIn] = useState(false);
-  const [html5QrCode, setHtml5QrCode] = useState<Html5Qrcode | null>(null);
+  const [selectedCamera, setSelectedCamera] = useState<string>("environment");
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "No date available";
 
-  useEffect(() => {
-    // Initialize QR code scanner
-    const qrCodeScanner = new Html5Qrcode("reader");
-    setHtml5QrCode(qrCodeScanner);
-
-    // Clean up on component unmount
-    return () => {
-      if (qrCodeScanner.isScanning) {
-        qrCodeScanner.stop().catch((err) => console.error(err));
-      }
-    };
-  }, []);
-
-  const startScanner = () => {
-    if (!html5QrCode) return;
-
-    setScanning(true);
-    setError(null);
-    setScanResult(null);
-
-    const qrCodeSuccessCallback = async (decodedText: string) => {
-      // Stop scanning once we have a result
-      await html5QrCode?.stop();
-      setScanning(false);
-
-      try {
-        // Validate the QR code format (should be a UUID)
-        const uuidRegex =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(decodedText)) {
-          throw new Error("Invalid QR code format");
-        }
-
-        // Fetch appointment details and process check-in
-        processAppointmentCheckIn(decodedText);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("An unknown error occurred");
-        }
-      }
-    };
-
-    const qrCodeErrorCallback = (error: string) => {
-      console.error(error);
-      setError("Error accessing camera: " + error);
-      setScanning(false);
-    };
-
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-    html5QrCode
-      .start(
-        { facingMode: "environment" },
-        config,
-        qrCodeSuccessCallback,
-        qrCodeErrorCallback
-      )
-      .catch((err) => {
-        console.error(err);
-        setError("Could not start scanner: " + err);
-        setScanning(false);
+    try {
+      return new Date(dateString).toLocaleString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
-  };
-
-  const stopScanner = async () => {
-    if (html5QrCode && html5QrCode.isScanning) {
-      await html5QrCode.stop();
-      setScanning(false);
+    } catch (error) {
+      console.error("Date formatting error:", error);
+      return "Invalid date";
     }
   };
 
-  const resetScanner = () => {
-    setScanResult(null);
-    setError(null);
-  };
+  const handleScan = useCallback((decodedText: string) => {
+    console.log("QR Code detected:", decodedText);
+    setScanning(false);
+
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        decodedText
+      )
+    ) {
+      setError("Invalid appointment QR code");
+      return;
+    }
+
+    processAppointmentCheckIn(decodedText);
+  }, []);
+
+  const handleError = useCallback((errorMessage: string) => {
+    console.error("QR Scanner error:", errorMessage);
+    if (!errorMessage.includes("No QR code found")) {
+      setError(errorMessage);
+    }
+  }, []);
+
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+
+    if (scanning) {
+      const container = document.getElementById("scanner-container");
+      if (container) {
+        container.innerHTML = ""; // Clear previous content
+
+        scanner = new Html5QrcodeScanner(
+          "scanner-container",
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.777778,
+            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+            showTorchButtonIfSupported: true,
+          },
+          false
+        );
+
+        scanner.render((decodedText) => {
+          scanner?.clear();
+          handleScan(decodedText);
+        }, handleError);
+      }
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(console.error);
+      }
+    };
+  }, [scanning, handleScan, handleError]);
 
   const processAppointmentCheckIn = async (appointmentId: string) => {
     setProcessingCheckIn(true);
-
     try {
-      // API call to your backend
-      const response = await fetch(
-        `/api/appointments/${appointmentId}/check-in`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      console.log("Processing check-in for appointment:", appointmentId);
+
+      const response = await api.post(
+        `/appointments/${appointmentId}/check-in`
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to check in");
-      }
 
       setScanResult({
         success: true,
         message: "Check-in successful",
-        appointment: data.appointment,
+        appointment: response.data.appointment,
       });
     } catch (err) {
-      if (err instanceof Error) {
-        setScanResult({
-          success: false,
-          message: err.message,
-        });
-      } else {
-        setScanResult({
-          success: false,
-          message: "An unknown error occurred",
-        });
-      }
+      console.error("Check-in error:", err);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message || "Server error during check-in"
+        : err instanceof Error
+        ? err.message
+        : "Check-in failed";
+
+      setScanResult({
+        success: false,
+        message: errorMessage,
+      });
     } finally {
       setProcessingCheckIn(false);
     }
   };
 
-  const formatAppointmentTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const manualCheckIn = () => {
-    // Placeholder for manual check-in functionality
-    // This would open a form to enter appointment ID or student ID
     setError("Manual check-in feature not implemented yet");
   };
 
+  const resetScanner = () => {
+    setScanResult(null);
+    setError(null);
+    setScanning(true);
+  };
+
+  const startScanner = () => {
+    setError(null);
+    setScanResult(null);
+    setScanning(true);
+  };
+
+  const stopScanner = () => {
+    setScanning(false);
+  };
+
   return (
-    // <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
         <Link
@@ -266,166 +248,229 @@ const QrCodeScannerPortal: React.FC = () => {
           </Link>
         </nav>
       </header>
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Medical Center Check-in</CardTitle>
-          <CardDescription>
-            Scan appointment QR code to check in
-          </CardDescription>
-        </CardHeader>
 
-        <Tabs defaultValue="scan" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="scan">Scan QR Code</TabsTrigger>
-            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-          </TabsList>
+      <main className="flex-1 py-6 px-4 md:px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex justify-center"
+        >
+          <Card className="w-full max-w-2xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">
+                Medical Center Check-in
+              </CardTitle>
+              <CardDescription>
+                Scan appointment QR code to check in
+              </CardDescription>
+            </CardHeader>
 
-          <TabsContent value="scan" className="space-y-4">
-            <CardContent>
-              {!scanResult ? (
-                <>
-                  <div
-                    id="reader"
-                    className="w-full h-64 bg-gray-100 rounded-md overflow-hidden"
-                  ></div>
+            <Tabs defaultValue="scan" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="scan">Scan QR Code</TabsTrigger>
+                <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+              </TabsList>
 
-                  {error && (
-                    <Alert variant="destructive" className="mt-4">
-                      <XCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-4">
-                  {scanResult.success ? (
+              <TabsContent value="scan" className="space-y-4">
+                <CardContent>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Camera
+                    </label>
+                    <select
+                      value={selectedCamera}
+                      onChange={(e) => setSelectedCamera(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="environment">Rear Camera (Default)</option>
+                      <option value="user">Front Camera</option>
+                    </select>
+                  </div>
+
+                  {!scanResult ? (
                     <>
-                      <Alert className="bg-green-50 border-green-200">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <AlertTitle className="text-green-800">
-                          Check-in Successful
-                        </AlertTitle>
-                        <AlertDescription className="text-green-700">
-                          {scanResult.message}
-                        </AlertDescription>
-                      </Alert>
-
-                      {scanResult.appointment && (
-                        <div className="mt-4 space-y-2 p-4 bg-gray-50 rounded-md">
-                          <div className="flex justify-between items-center">
-                            <h3 className="font-medium">
-                              {scanResult.appointment.student.profile.firstName}{" "}
-                              {scanResult.appointment.student.profile.lastName}
-                            </h3>
-                            <Badge
-                              variant={
-                                scanResult.appointment.priority > 2
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              Priority: {scanResult.appointment.priority}
-                            </Badge>
+                      <div className="w-full h-64 bg-gray-100 rounded-md overflow-hidden flex items-center justify-center">
+                        {scanning ? (
+                          <div
+                            id="scanner-container"
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            <p className="mb-2">
+                              Camera preview will appear here
+                            </p>
+                            <p className="text-sm">
+                              Click "Start Scanning" to begin
+                            </p>
                           </div>
+                        )}
+                      </div>
 
-                          <div className="text-sm text-gray-500">
-                            <p>
-                              Student ID:{" "}
-                              {scanResult.appointment.student.studentId}
-                            </p>
-                            <p>
-                              Appointment:{" "}
-                              {formatAppointmentTime(
-                                scanResult.appointment.startTime
-                              )}
-                            </p>
-                            <p>Service: {scanResult.appointment.service}</p>
-                            <p>
-                              Provider:{" "}
-                              {
-                                scanResult.appointment.provider?.profile
-                                  .firstName
-                              }{" "}
-                              {
-                                scanResult.appointment.provider?.profile
-                                  .lastName
-                              }
-                            </p>
-                            {scanResult.appointment.location && (
-                              <p>Location: {scanResult.appointment.location}</p>
-                            )}
-                          </div>
-                        </div>
+                      {error && (
+                        <Alert variant="destructive" className="mt-4">
+                          <XCircle className="h-4 w-4" />
+                          <AlertTitle>Scanning Error</AlertTitle>
+                          <AlertDescription>
+                            {error}
+                            <div className="mt-2">
+                              <Button
+                                variant="link"
+                                className="h-auto p-0 text-sm"
+                                onClick={() => {
+                                  setError(null);
+                                  startScanner();
+                                }}
+                              >
+                                Try Again
+                              </Button>
+                            </div>
+                          </AlertDescription>
+                        </Alert>
                       )}
                     </>
                   ) : (
-                    <Alert variant="destructive">
-                      <XCircle className="h-4 w-4" />
-                      <AlertTitle>Check-in Failed</AlertTitle>
-                      <AlertDescription>{scanResult.message}</AlertDescription>
-                    </Alert>
+                    <div className="space-y-4">
+                      {scanResult.success ? (
+                        <>
+                          <Alert className="bg-green-50 border-green-200">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <AlertTitle className="text-green-800">
+                              Check-in Successful
+                            </AlertTitle>
+                            <AlertDescription className="text-green-700">
+                              {scanResult.message}
+                            </AlertDescription>
+                          </Alert>
+
+                          {scanResult.appointment && (
+                            <div className="mt-4 space-y-2 p-4 bg-gray-50 rounded-md">
+                              <div className="flex justify-between items-center">
+                                <h3 className="font-medium">
+                                  {scanResult.appointment.service ||
+                                    "No service specified"}
+                                </h3>
+                                <div className="flex gap-2">
+                                  <Badge
+                                    variant={
+                                      scanResult.appointment.checkedIn
+                                        ? "default"
+                                        : "outline"
+                                    }
+                                  >
+                                    {scanResult.appointment.checkedIn
+                                      ? "Checked In"
+                                      : "Pending"}
+                                  </Badge>
+                                  <Badge
+                                    variant={
+                                      scanResult.appointment.priority > 2
+                                        ? "destructive"
+                                        : "secondary"
+                                    }
+                                  >
+                                    Priority: {scanResult.appointment.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="text-sm text-gray-500">
+                                <p>
+                                  Time:{" "}
+                                  {formatDateTime(
+                                    scanResult.appointment.startTime
+                                  )}
+                                </p>
+                                {scanResult.appointment.provider && (
+                                  <p>
+                                    Provider:{" "}
+                                    {scanResult.appointment.provider.profile
+                                      .firstName || "Unknown"}{" "}
+                                    {scanResult.appointment.provider.profile
+                                      .lastName || ""}
+                                  </p>
+                                )}
+                                {scanResult.appointment.checkedInAt && (
+                                  <p>
+                                    Checked in at:{" "}
+                                    {formatDateTime(
+                                      scanResult.appointment.checkedInAt
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <Alert variant="destructive">
+                          <XCircle className="h-4 w-4" />
+                          <AlertTitle>Check-in Failed</AlertTitle>
+                          <AlertDescription>
+                            {scanResult.message}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
-            </CardContent>
+                </CardContent>
 
-            <CardFooter className="flex justify-center gap-4">
-              {!scanning && !scanResult && (
-                <Button onClick={startScanner} className="w-full">
-                  Start Scanning
-                </Button>
-              )}
+                <CardFooter className="flex justify-center gap-4">
+                  {!scanning && !scanResult && (
+                    <Button onClick={startScanner} className="w-full">
+                      Start Scanning
+                    </Button>
+                  )}
 
-              {scanning && (
-                <Button
-                  onClick={stopScanner}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Stop Scanning
-                </Button>
-              )}
+                  {scanning && (
+                    <Button
+                      onClick={stopScanner}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Stop Scanning
+                    </Button>
+                  )}
 
-              {scanResult && (
-                <Button
-                  onClick={resetScanner}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Scan Another
-                </Button>
-              )}
+                  {scanResult && (
+                    <Button
+                      onClick={resetScanner}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Scan Another
+                    </Button>
+                  )}
 
-              {processingCheckIn && (
-                <Button disabled className="w-full">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </Button>
-              )}
-            </CardFooter>
-          </TabsContent>
+                  {processingCheckIn && (
+                    <Button disabled className="w-full">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </Button>
+                  )}
+                </CardFooter>
+              </TabsContent>
 
-          <TabsContent value="manual">
-            <CardContent>
-              <div className="p-8 flex flex-col items-center justify-center">
-                <p className="text-center text-gray-500 mb-4">
-                  Use manual check-in if the QR code is unavailable
-                </p>
-                <Button onClick={manualCheckIn} className="w-full">
-                  Enter Appointment Details
-                </Button>
-              </div>
-            </CardContent>
-          </TabsContent>
-        </Tabs>
-      </Card>
+              <TabsContent value="manual">
+                <CardContent>
+                  <div className="p-8 flex flex-col items-center justify-center">
+                    <p className="text-center text-gray-500 mb-4">
+                      Use manual check-in if the QR code is unavailable
+                    </p>
+                    <Button onClick={manualCheckIn} className="w-full">
+                      Enter Appointment Details
+                    </Button>
+                  </div>
+                </CardContent>
+              </TabsContent>
+            </Tabs>
+          </Card>
+        </motion.div>
+      </main>
     </div>
   );
 };
 
 export default QrCodeScannerPortal;
-function disconnectSocket() {
-  throw new Error("Function not implemented.");
-}

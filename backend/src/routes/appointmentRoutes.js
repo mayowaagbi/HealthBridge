@@ -52,6 +52,7 @@ router.get(
   authorize("PROVIDER"),
   AppointmentController.getProviderAppointments
 );
+
 router.patch(
   "/:id/status",
   authorize("PROVIDER"),

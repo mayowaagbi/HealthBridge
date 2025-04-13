@@ -7,6 +7,8 @@ import { Textarea } from "../components/ui/textarea";
 import { Heart, Mail, Phone, MapPin } from "lucide-react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
+import axios from "axios";
+import api from "../api";
 
 export default function ContactPage() {
   const [formStatus, setFormStatus] = useState<
@@ -30,9 +32,36 @@ export default function ContactPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormStatus("submitting");
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setFormStatus("submitted");
+
+    // Get form elements by name
+    const form = event.currentTarget;
+    const formData = {
+      firstName: (form.elements.namedItem("first-name") as HTMLInputElement)
+        .value,
+      lastName: (form.elements.namedItem("last-name") as HTMLInputElement)
+        .value,
+      email: (form.elements.namedItem("email") as HTMLInputElement).value,
+      message: (form.elements.namedItem("message") as HTMLTextAreaElement)
+        .value,
+    };
+
+    try {
+      console.log("Form data:", formData); // Log the form data for debugging
+      const response = await api.post("/contact", formData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 200) {
+        setFormStatus("submitted");
+      } else {
+        throw new Error("Failed to send message");
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      setFormStatus("error");
+    }
   };
 
   return (

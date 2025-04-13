@@ -34,7 +34,7 @@ const studentRoutes = require("./routes/studentRoutes");
 const supportRoutes = require("./routes/supportRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const healthRouter = require("./routes/dailyHealthRoutes");
-
+const nodemailer = require("nodemailer");
 // Import middleware
 const { authenticate } = require("./middleware/authMiddleware");
 const apiLimiter = require("./middleware/rateLimiter");
@@ -134,6 +134,82 @@ app.get("/health", (req, res) => {
 // Error handling
 app.use(notFound);
 app.use(errorHandler);
+// Contact form endpoint
+const transporter = nodemailer.createTransport({
+  host: process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io",
+  port: process.env.MAILTRAP_PORT || 2525,
+  auth: {
+    user: process.env.MAILTRAP_USER || "your-mailtrap-user",
+    pass: process.env.MAILTRAP_PASS || "your-mailtrap-pass",
+  },
+});
+app.post("/contact", async (req, res) => {
+  try {
+    const { firstName, lastName, email, message } = req.body;
+    if (!firstName || !lastName || !email || !message) {
+      return res.status(400).json({
+        error: "All fields are required",
+        received: req.body, // Log what was actually received
+      });
+    }
+    console.log("Contact form data:");
+    // Validate input
+    if (!firstName || !lastName || !email || !message) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Email options
+    const mailOptions = {
+      from: `"Contact Form" <${
+        process.env.EMAIL_FROM || "noreply@healthbridge.com"
+      }>`,
+      to: process.env.CONTACT_EMAIL || "info@healthbridge.com",
+      subject: `New Contact Form Submission from ${firstName} ${lastName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;">
+          <h2 style="color: #4CAF50;">New Contact Form Submission</h2>
+          <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Message:</strong></p>
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px;">
+            ${message.replace(/\n/g, "<br>")}
+          </div>
+        </div>
+      `,
+    };
+
+    // Send email
+    await transporter.sendMail(mailOptions);
+
+    // Send confirmation email to user
+    const userMailOptions = {
+      from: `"HealthBridge Support" <${
+        process.env.EMAIL_FROM || "noreply@healthbridge.com"
+      }>`,
+      to: email,
+      subject: "Thank you for contacting HealthBridge",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;">
+          <h2 style="color: #4CAF50;">Thank you for reaching out!</h2>
+          <p>Hello ${firstName},</p>
+          <p>We've received your message and our team will get back to you as soon as possible.</p>
+          <p>Here's a copy of your message for your records:</p>
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px;">
+            ${message.replace(/\n/g, "<br>")}
+          </div>
+          <p style="margin-top: 20px;">Best regards,<br>The HealthBridge Team</p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(userMailOptions);
+
+    res.status(200).json({ message: "Message sent successfully" });
+  } catch (error) {
+    console.error("Error sending contact form:", error);
+    res.status(500).json({ error: "Failed to send message" });
+  }
+});
 
 // Server configuration
 const PORT = process.env.PORT || 3000;

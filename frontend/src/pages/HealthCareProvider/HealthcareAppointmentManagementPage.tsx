@@ -71,7 +71,7 @@ export default function AppointmentManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [appointmentHistory, setAppointmentHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-
+  const [supportname, setSupportname] = useState<string | undefined>();
   // Fetch appointment history
   const fetchAppointmentHistory = async (appointmentId: string) => {
     try {
@@ -193,7 +193,7 @@ export default function AppointmentManagementPage() {
 
       await api.patch(
         `/api/appointments/${id}/status`,
-        { status },
+        { status, supportname },
         {
           headers: { Authorization: `Bearer ${accessToken}` },
         }
@@ -247,7 +247,11 @@ export default function AppointmentManagementPage() {
         { supportId },
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
-
+      setSupportname(
+        `${response.data.support.profile?.firstName || ""} ${
+          response.data.support.profile?.lastName || ""
+        }`.trim()
+      );
       setAppointments((prev) =>
         prev.map((appt) =>
           appt.id === id

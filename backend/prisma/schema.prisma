@@ -14,6 +14,7 @@ enum AppointmentStatus {
   CANCELLED
   RESCHEDULED
   MISSED
+  CHECKEDIN
 }
 
 enum UserRole {
@@ -169,6 +170,8 @@ model Appointment {
   priority   Int               @default(3)
   location   String?
   notes      String?
+  checkedIn  Boolean           @default(false)  // Add this line
+  checkedInAt DateTime?        // Add this line
 
   student   StudentDetails        @relation(fields: [studentId], references: [id])
   provider  ProviderDetails?      @relation(fields: [providerId], references: [id])

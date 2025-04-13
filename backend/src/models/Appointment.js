@@ -449,6 +449,55 @@ class AppointmentService {
       },
     });
   }
+  async getSupportByAppointmentId(appointmentId) {
+    try {
+      logger.info(`Fetching support staff for appointment ${appointmentId}`);
+
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          support: {
+            include: {
+              profile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!appointment) {
+        logger.warn(`Appointment ${appointmentId} not found`);
+        throw new ApiError(404, "Appointment not found");
+      }
+
+      if (!appointment.support) {
+        logger.warn(
+          `No support staff assigned to appointment ${appointmentId}`
+        );
+        return null;
+      }
+
+      const supportInfo = {
+        firstName: appointment.support.profile.firstName,
+        lastName: appointment.support.profile.lastName,
+      };
+
+      logger.info(
+        `Successfully retrieved support staff for appointment ${appointmentId}`
+      );
+      return supportInfo;
+    } catch (error) {
+      logger.error(
+        `Failed to fetch support staff for appointment ${appointmentId}:`,
+        error
+      );
+      throw new ApiError(500, "Failed to fetch support staff information");
+    }
+  }
 }
 
 module.exports = new AppointmentService();

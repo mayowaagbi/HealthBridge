@@ -219,15 +219,17 @@ class AppointmentController {
   updateAppointmentStatus = asyncHandler(async (req, res) => {
     try {
       const { id } = req.params;
-      const { status } = req.body;
+      const { status, supportname } = req.body;
       const providerId = req.user.id;
       const providerprofile = await ProfielModel.findByUserId(providerId);
+      const support = await appointmentService.getsupportbyappoinmentid(id);
       const updatedAppointment = await AppointmentService.updateStatus(
         id,
         status,
         providerId
       );
 
+      console.log("supportname:", support);
       // Send email notification
       if (["CONFIRMED", "DENIED"].includes(status)) {
         await sendEmail({
@@ -326,6 +328,12 @@ class AppointmentController {
       }
 
       console.log("[Controller] Fetched appointment:", appointment);
+      const supportId = appointment.supportId;
+
+      // Accessing support's first and last name
+      const supportFirstName = appointment.support.profile.firstName;
+      const supportLastName = appointment.support.profile.lastName;
+      const supportname = `${supportFirstName} ${supportLastName}`;
 
       // Check authorization
 
@@ -343,7 +351,8 @@ class AppointmentController {
         await sendAppointmentStatusEmail(
           updatedAppointment.student.profile.user,
           updatedAppointment,
-          status
+          status,
+          supportname
         );
         console.log("[Controller] Email sent successfully.");
       }
