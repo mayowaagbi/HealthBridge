@@ -1,0 +1,416 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  DENIED
+  CANCELLED
+  RESCHEDULED
+  MISSED
+}
+
+enum UserRole {
+  ADMIN
+  STUDENT
+  PROVIDER
+  SUPPORT
+}
+
+enum EntryType {
+  MOOD
+  JOURNAL
+}
+
+enum FileCategory {
+  MEDICAL_REPORT
+  LAB_RESULT
+  PRESCRIPTION
+  IMAGING
+  CONSENT_FORM
+  IDENTIFICATION
+  AMBULANCE_REQUEST
+  OTHER
+}
+
+enum AlertPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum RequestStatus {
+  PENDING
+  DISPATCHED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  role         UserRole
+  mfaEnabled   Boolean   @default(false)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  stepGoal     Int       @default(10000)
+
+  profile                     Profile?
+  sessions                    Session[]
+  logs                        AuditLog[]
+  notifications               Notification[]
+  locations                   UserLocation[]
+  stepEntries                 StepEntry[]
+  files                       File[]
+  ambulanceRequests           AmbulanceRequest[]
+  waterGoals                  WaterGoal[]
+  entries                     UserEntry[]
+  medicalDocuments            MedicalDocument[]
+  appointmentHistoriesCreated AppointmentHistory[] @relation("UserAppointmentChanges")
+  alertsCreated               Alert[]              @relation("UserCreatedAlerts")
+
+  @@index([email, createdAt])
+}
+
+model Profile {
+  id                String             @id @default(uuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id])
+  firstName         String?
+  lastName          String?
+  dateOfBirth       DateTime?
+  phone             String?            @unique
+  avatar            String?
+  bio               String?
+  bloodType         String?
+  allergies         String?
+  emergencyContacts EmergencyContact[]
+
+  notifyEmail Boolean @default(true)
+  notifySms   Boolean @default(false)
+  notifyPush  Boolean @default(true)
+
+  studentDetails  StudentDetails?
+  providerDetails ProviderDetails?
+  supportDetails  SupportDetails?
+
+  @@index([firstName, lastName])
+}
+
+model StudentDetails {
+  id                    String  @id @default(uuid())
+  profileId             String  @unique
+  profile               Profile @relation(fields: [profileId], references: [id])
+  studentId             String  @unique
+  insuranceNumber       String?
+  primaryCareProviderId String?
+
+  medicalDocuments MedicalDocument[]
+  appointments     Appointment[]
+  alerts           AlertStudent[] // Many-to-many relationship via join table
+  prescriptions    Prescription[]
+
+  @@index([studentId])
+}
+
+model ProviderDetails {
+  id             String  @id @default(uuid())
+  profileId      String  @unique
+  profile        Profile @relation(fields: [profileId], references: [id])
+  licenseNumber  String  @unique
+  specialization String
+  department     String
+  available      Boolean @default(true)
+
+  appointments   Appointment[]
+  qualifications ProviderQualification[]
+  schedules      AvailabilitySchedule[]
+
+  @@index([licenseNumber, specialization])
+}
+
+model SupportDetails {
+  id             String  @id @default(uuid())
+  profileId      String  @unique
+  profile        Profile @relation(fields: [profileId], references: [id])
+  licenseNumber  String  @unique
+  specialization String
+  department     String
+  available      Boolean @default(true)
+
+  appointments Appointment[] // Appointments assigned to this support staff
+  schedules    AvailabilitySchedule[] // Availability schedules for this support staff
+
+  @@index([licenseNumber, specialization])
+}
+
+model Appointment {
+  id         String            @id @default(uuid())
+  studentId  String
+  providerId String?
+  supportId  String?
+  startTime  DateTime
+  duration   Int
+  service    String
+  status     AppointmentStatus @default(PENDING)
+  priority   Int               @default(3)
+  location   String?
+  notes      String?
+
+  student   StudentDetails        @relation(fields: [studentId], references: [id])
+  provider  ProviderDetails?      @relation(fields: [providerId], references: [id])
+  support   SupportDetails?       @relation(fields: [supportId], references: [id])
+  histories AppointmentHistory[]
+  documents AppointmentDocument[]
+
+  @@index([studentId, providerId, startTime])
+}
+
+model Alert {
+  id        String        @id @default(uuid())
+  title     String
+  message   String
+  startTime DateTime
+  endTime   DateTime
+  priority  AlertPriority @default(MEDIUM)
+  status    AlertStatus   @default(ACTIVE)
+  createdAt DateTime      @default(now())
+
+  // Link to the provider who created the alert
+  createdBy   User   @relation("UserCreatedAlerts", fields: [createdById], references: [id])
+  createdById String
+
+  // Many-to-many relationship with StudentDetails via join table
+  students AlertStudent[]
+}
+
+model AlertStudent {
+  id        String         @id @default(uuid())
+  alertId   String
+  studentId String
+  alert     Alert          @relation(fields: [alertId], references: [id])
+  student   StudentDetails @relation(fields: [studentId], references: [id])
+
+  @@unique([alertId, studentId])
+}
+
+model UserEntry {
+  id        String    @id @default(uuid())
+  userId    String
+  type      EntryType // Ensure this is defined
+  mood      String?
+  journal   String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, type, createdAt])
+}
+
+model ProviderQualification {
+  id            String @id @default(uuid())
+  providerId    String
+  qualification String
+  institution   String
+  yearObtained  Int
+
+  provider ProviderDetails @relation(fields: [providerId], references: [id])
+}
+
+model AvailabilitySchedule {
+  id               String   @id @default(uuid())
+  supportDetailsId String?  @unique // For support staff
+  providerId       String?  @unique // For providers
+  startTime        DateTime
+  endTime          DateTime
+  recurrence       String?
+  createdAt        DateTime @default(now())
+
+  provider ProviderDetails? @relation(fields: [providerId], references: [id])
+  support  SupportDetails?  @relation(fields: [supportDetailsId], references: [id])
+}
+
+model AppointmentHistory {
+  id            String   @id @default(uuid())
+  appointmentId String
+  status        String
+  changedById   String
+  timestamp     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  changedBy   User        @relation(fields: [changedById], references: [id], name: "UserAppointmentChanges")
+}
+
+model AppointmentDocument {
+  id            String   @id @default(uuid())
+  appointmentId String
+  name          String
+  filePath      String
+  uploadedAt    DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model Prescription {
+  id           String         @id @default(uuid())
+  student      StudentDetails @relation(fields: [studentId], references: [id])
+  studentId    String
+  medication   String
+  dosage       String
+  instructions String
+  refills      Int            @default(0)
+  createdAt    DateTime       @default(now())
+}
+
+model EmergencyContact {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  relationship String
+  phone        String  @unique
+  email        String?
+  priority     Int     @default(1)
+
+  profile Profile @relation(fields: [profileId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  content   String
+  read      Boolean   @default(false)
+  priority  AlertPriority @default(MEDIUM)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  actionType  String
+  targetId    String?
+  description String
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+model SystemConfig {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+  type  String
+}
+
+model UserLocation {
+  id        String   @id @default(uuid())
+  userId    String
+  latitude  Float
+  longitude Float
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+}
+
+model StepEntry {
+  id     String   @id @default(uuid())
+  userId String
+  date   DateTime @default(now())
+  steps  Int
+  source String   @default("GEO") // GEO, MANUAL
+  user   User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model File {
+  id          String   @id @default(uuid())
+  userId      String
+  url         String
+  type        FileType
+  description String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+enum FileType {
+  AMBULANCE_REQUEST
+  PROFILE
+  MEDICAL_REPORT
+  OTHER
+}
+
+model AmbulanceRequest {
+  id        String        @id @default(uuid())
+  userId    String
+  status    RequestStatus @default(PENDING)
+  latitude  Float?
+  longitude Float?
+  address   String?
+  files     String[] // Array of file URLs
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+}
+
+model WaterGoal {
+  id      String   @id @default(uuid())
+  userId  String
+  target  Int      @default(2000) // Default 2000ml
+  current Int      @default(0)
+  date    DateTime @default(now()) @db.Date
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model MedicalDocument {
+  id           String   @id @default(uuid())
+  studentId    String
+  filename     String
+  path         String   @unique
+  mimetype     String
+  size         Int
+  uploadedAt   DateTime @default(now())
+  uploadedById String
+
+  // Link to StudentDetails
+  student    StudentDetails @relation(fields: [studentId], references: [id])
+  uploadedBy User           @relation(fields: [uploadedById], references: [id]) // Add this relation
+
+  @@index([filename, uploadedAt])
+}

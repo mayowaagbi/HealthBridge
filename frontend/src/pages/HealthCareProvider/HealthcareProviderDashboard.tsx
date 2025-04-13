@@ -125,6 +125,12 @@ export default function HealthcareProviderDashboard() {
           >
             Alerts
           </Link>
+          <Link
+            className="text-sm font-medium hover:underline underline-offset-4"
+            to="/healthcare-provider/qrscanner"
+          >
+            QR Scanner
+          </Link>
           <Button variant="destructive" onClick={handleLogout}>
             Logout
           </Button>

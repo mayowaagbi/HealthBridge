@@ -131,6 +131,37 @@ export default function UserSignupPage() {
                 className="space-y-4"
               >
                 <div className="space-y-2">
+                  <Label htmlFor="firstName" className="dark:text-white">
+                    First Name
+                  </Label>
+                  <Input
+                    id="firstName"
+                    {...form.register("profile.firstName")}
+                    className="dark:bg-gray-700 dark:text-white"
+                  />
+                  {form.formState.errors.profile?.firstName && (
+                    <p className="text-sm text-red-500 dark:text-red-400">
+                      {form.formState.errors.profile.firstName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="dark:text-white">
+                    Last Name
+                  </Label>
+                  <Input
+                    id="lastName"
+                    {...form.register("profile.lastName")}
+                    className="dark:bg-gray-700 dark:text-white"
+                  />
+                  {form.formState.errors.profile?.lastName && (
+                    <p className="text-sm text-red-500 dark:text-red-400">
+                      {form.formState.errors.profile.lastName.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="email" className="dark:text-white">
                     Email
                   </Label>
@@ -160,38 +191,6 @@ export default function UserSignupPage() {
                   {form.formState.errors.password && (
                     <p className="text-sm text-red-500 dark:text-red-400">
                       {form.formState.errors.password.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="firstName" className="dark:text-white">
-                    First Name
-                  </Label>
-                  <Input
-                    id="firstName"
-                    {...form.register("profile.firstName")}
-                    className="dark:bg-gray-700 dark:text-white"
-                  />
-                  {form.formState.errors.profile?.firstName && (
-                    <p className="text-sm text-red-500 dark:text-red-400">
-                      {form.formState.errors.profile.firstName.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lastName" className="dark:text-white">
-                    Last Name
-                  </Label>
-                  <Input
-                    id="lastName"
-                    {...form.register("profile.lastName")}
-                    className="dark:bg-gray-700 dark:text-white"
-                  />
-                  {form.formState.errors.profile?.lastName && (
-                    <p className="text-sm text-red-500 dark:text-red-400">
-                      {form.formState.errors.profile.lastName.message}
                     </p>
                   )}
                 </div>

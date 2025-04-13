@@ -32,6 +32,7 @@ import { getSocket, connectSocket } from "./hooks/sockets";
 import { ErrorBoundary } from "react-error-boundary";
 import UserSignupPage from "./pages/UserSignUpPage";
 import HealthChatbot from "./components/HealthChatbot";
+import QrCodeScannerPortal from "./pages/HealthCareProvider/QrCodeScannerPortal";
 
 const queryClient = new QueryClient();
 
@@ -274,6 +275,10 @@ export default function App() {
                       <Route
                         path="patients"
                         element={<PatientManagementPage />}
+                      />
+                      <Route
+                        path="qrscanner"
+                        element={<QrCodeScannerPortal />}
                       />
                       <Route path="alerts" element={<AlertsPage />} />
                       <Route
