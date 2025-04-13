@@ -1,0 +1,32 @@
+export const ROUTES = {
+  HOME: "/",
+  EDUCATION: "/education",
+  FACILITIES: "/facilities",
+  SERVICES: "/services",
+  CONTACT: "/contact",
+  LOGIN: "/login",
+  TERMS: "/terms-and-services",
+  STUDENT: {
+    DASHBOARD: "/student/dashboard",
+    PROFILE: "/student/profile",
+    APPOINTMENTS: "/student/appointments",
+    HEALTH_GOALS: "/student/health-goals",
+    HEALTH_RECORDS: "/student/health-records",
+    NOTIFICATIONS: "/student/notifications",
+  },
+  ADMIN: {
+    DASHBOARD: "/admin/dashboard",
+    SETTINGS: "/admin/settings",
+    HEALTH_RECORDS: "/admin/health-records",
+    STUDENTS: "/admin/students",
+    HEALTH_ALERTS: "/admin/health-alerts",
+  },
+  HEALTHCARE: {
+    DASHBOARD: "/healthcare-provider/dashboard",
+    APPOINTMENTS: "/healthcare-provider/appointments",
+    PATIENTS: "/healthcare-provider/patients",
+    ALERTS: "/healthcare-provider/alerts",
+    HEALTH_RECORDS: "/healthcare-provider/health-records",
+    PRESCRIPTIONS: "/healthcare-provider/prescriptions",
+  },
+};
