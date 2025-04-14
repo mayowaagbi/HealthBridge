@@ -473,13 +473,17 @@ export default function StudentAppointmentPage() {
                           <TableCell>{appointment.location || "N/A"}</TableCell>
                           <TableCell>{appointment.status}</TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReschedule(appointment)}
-                            >
-                              Reschedule
-                            </Button>
+                            {appointment.status === "CONFIRMED" ? (
+                              ""
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReschedule(appointment)}
+                              >
+                                Reschedule
+                              </Button>
+                            )}
                             <Button
                               variant="destructive"
                               size="sm"

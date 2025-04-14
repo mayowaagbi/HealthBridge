@@ -42,6 +42,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function UserSignupPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
 
   const form = useForm<SignupFormValues>({
@@ -60,11 +61,10 @@ export default function UserSignupPage() {
 
   const onSubmit = async (data: SignupFormValues) => {
     setIsLoading(true);
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) throw new Error("Not authenticated");
+    setFieldErrors({});
 
-      // Add default role here
+    try {
+      // No need for token during registration
       const formattedData = {
         ...data,
         role: "STUDENT", // Hardcoded role
@@ -74,17 +74,38 @@ export default function UserSignupPage() {
         },
       };
 
-      const headers = { Authorization: `Bearer ${accessToken}` };
-      const response = await api.post("/api/auth/register", formattedData, {
-        headers,
-      });
-      navigate("/login");
+      console.log("Sending signup data:", formattedData);
+      await api.post("/api/auth/register", formattedData);
+
       toast.success("Signup successful!");
-    } catch (error) {
-      const errorMessage =
-        (error as any).response?.data?.message ||
-        "Failed to sign up. Please try again.";
-      toast.error(errorMessage);
+      navigate("/login");
+    } catch (error: any) {
+      console.error("Signup error:", error);
+
+      // Check for specific Prisma error codes
+      const prismaError = error.response?.data?.meta;
+
+      if (
+        error.response?.data?.code === "P2002" &&
+        prismaError?.target?.includes("phone")
+      ) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          phone: "Phone number already in use",
+        }));
+        toast.error("This phone number is already registered");
+      } else if (
+        error.response?.data?.code === "P2002" &&
+        prismaError?.target?.includes("email")
+      ) {
+        setFieldErrors((prev) => ({ ...prev, email: "Email already in use" }));
+        toast.error("This email is already registered");
+      } else {
+        const errorMessage =
+          error.response?.data?.message ||
+          "Failed to sign up. Please try again.";
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -169,11 +190,14 @@ export default function UserSignupPage() {
                     id="email"
                     type="email"
                     {...form.register("email")}
-                    className="dark:bg-gray-700 dark:text-white"
+                    className={`dark:bg-gray-700 dark:text-white ${
+                      fieldErrors.email ? "border-red-500" : ""
+                    }`}
                   />
-                  {form.formState.errors.email && (
+                  {(form.formState.errors.email || fieldErrors.email) && (
                     <p className="text-sm text-red-500 dark:text-red-400">
-                      {form.formState.errors.email.message}
+                      {fieldErrors.email ||
+                        form.formState.errors.email?.message}
                     </p>
                   )}
                 </div>
@@ -219,11 +243,15 @@ export default function UserSignupPage() {
                   <Input
                     id="phone"
                     {...form.register("profile.phone")}
-                    className="dark:bg-gray-700 dark:text-white"
+                    className={`dark:bg-gray-700 dark:text-white ${
+                      fieldErrors.phone ? "border-red-500" : ""
+                    }`}
                   />
-                  {form.formState.errors.profile?.phone && (
+                  {(form.formState.errors.profile?.phone ||
+                    fieldErrors.phone) && (
                     <p className="text-sm text-red-500 dark:text-red-400">
-                      {form.formState.errors.profile.phone.message}
+                      {fieldErrors.phone ||
+                        form.formState.errors.profile?.phone?.message}
                     </p>
                   )}
                 </div>
