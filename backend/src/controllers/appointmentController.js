@@ -416,7 +416,7 @@ class AppointmentController {
       errorResponse(res, error.message, error.statusCode || 500);
     }
   }
-  async appointmentCheckIn(res, req) {
+  async appointmentCheckIn(req, res) {
     try {
       const { id } = req.params;
       const userId = req.user.id; // Get the logged-in user's ID

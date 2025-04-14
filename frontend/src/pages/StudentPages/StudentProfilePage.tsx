@@ -196,9 +196,9 @@ export default function StudentProfilePage() {
           className="flex items-center justify-center"
           to="/student/dashboard"
         >
-          <span className="sr-only">Campus Health Management System</span>
+          <span className="sr-only">HealthBridge</span>
           <Heart className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-lg font-semibold">CHMS</span>
+          <span className="ml-2 text-lg font-semibold">HealthBridge</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           <Link

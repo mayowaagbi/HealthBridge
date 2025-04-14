@@ -14,7 +14,7 @@ const validateResponseObject = (res) => {
     typeof res.status !== "function" ||
     typeof res.json !== "function"
   ) {
-    console.error("Invalid response object provided:", res);
+    console.error("Invalid response object provided:");
     throw new ResponseError("Internal Server Error", 500, {
       internal: "Invalid Express response object",
     });

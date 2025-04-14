@@ -137,7 +137,7 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async (to, subject, html) => {
   try {
     await transporter.sendMail({
-      from: `"Campus Health" <${process.env.EMAIL_FROM}>`,
+      from: `"HealthBridge" <${process.env.EMAIL_FROM}>`,
       to,
       subject,
       html,
@@ -208,6 +208,7 @@ const generateStyledEmail = (
         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 10px;">
           <strong>Appointment Details:</strong>
           <ul style="list-style-type: none; padding: 0;">
+          <li><strong>Appointment id:</strong> ${appointment.id}</li>
             <li><strong>Date:</strong> ${new Date(
               appointment.startTime
             ).toLocaleDateString()}</li>
