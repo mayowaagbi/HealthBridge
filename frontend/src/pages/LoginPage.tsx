@@ -172,7 +172,7 @@ export default function LoginPage() {
             transition={{ delay: 0.2, duration: 0.5 }}
             className="ml-2 text-lg font-bold text-black dark:text-white"
           >
-            Campus Health System
+            HealthBridge
           </motion.span>
         </Link>
       </header>

@@ -1,6 +1,14 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Calendar, Target, Bell, FileText, ShieldCheck } from "lucide-react";
+import {
+  Calendar,
+  Target,
+  Bell,
+  FileText,
+  ShieldCheck,
+  ScanBarcode,
+  Bot,
+} from "lucide-react";
 import Navbar from "../components/Navbar";
 
 export default function ServicesPage() {
@@ -95,6 +103,28 @@ export default function ServicesPage() {
                 <p className="text-sm text-gray-500 text-center">
                   Your health data is protected with advanced encryption and
                   security measures, ensuring your information remains private.
+                </p>
+              </motion.div>
+              <motion.div
+                className="flex flex-col items-center space-y-2 border p-4 rounded-lg"
+                variants={fadeIn}
+              >
+                <ScanBarcode className="h-8 w-8 text-primary" />
+                <h2 className="text-xl font-bold">QR Code Checkin</h2>
+                <p className="text-sm text-gray-500 text-center">
+                  You can chekin for you appointments through a designated QR
+                  Codse that is sent as part of your reminder email.
+                </p>
+              </motion.div>
+              <motion.div
+                className="flex flex-col items-center space-y-2 border p-4 rounded-lg"
+                variants={fadeIn}
+              >
+                <Bot className="h-8 w-8 text-primary" />
+                <h2 className="text-xl font-bold">AI Chatbot</h2>
+                <p className="text-sm text-gray-500 text-center">
+                  You have access to an AI chatbot that could help you with any
+                  questions you have concenring you health realted concerns.
                 </p>
               </motion.div>
             </motion.div>

@@ -113,7 +113,7 @@ export default function SignupPage() {
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
             <CardDescription>
-              Create your account for the Campus Health Management System
+              Create your account for the HealthBridge
             </CardDescription>
           </CardHeader>
           <CardContent>
