@@ -107,7 +107,7 @@ export default function UserSignupPage() {
             transition={{ delay: 0.2, duration: 0.5 }}
             className="ml-2 text-lg font-bold text-black dark:text-white"
           >
-            Campus Health System
+            HealthBridge
           </motion.span>
         </Link>
       </header>
@@ -122,7 +122,7 @@ export default function UserSignupPage() {
             <CardHeader>
               <CardTitle className="dark:text-white">Sign Up</CardTitle>
               <CardDescription className="dark:text-gray-400">
-                Create your account for the Campus Health Management System
+                Create your account for HealthBridge
               </CardDescription>
             </CardHeader>
             <CardContent>

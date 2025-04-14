@@ -130,32 +130,27 @@ app.use("/api/health", healthRouter);
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
-
-// Error handling
-app.use(notFound);
-app.use(errorHandler);
-// Contact form endpoint
 const transporter = nodemailer.createTransport({
-  host: process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io",
-  port: process.env.MAILTRAP_PORT || 2525,
+  host: "sandbox.smtp.mailtrap.io",
+  port: 2525,
   auth: {
-    user: process.env.MAILTRAP_USER || "your-mailtrap-user",
-    pass: process.env.MAILTRAP_PASS || "your-mailtrap-pass",
+    user: "64f7199805533d",
+    pass: "2f51108c301221",
   },
+  logger: true,
+  debug: true,
 });
-app.post("/contact", async (req, res) => {
+app.post("/api/contact", async (req, res) => {
   try {
     const { firstName, lastName, email, message } = req.body;
+    console.log("Contact form submission received:", req.body);
+
+    // Validate input
     if (!firstName || !lastName || !email || !message) {
       return res.status(400).json({
         error: "All fields are required",
-        received: req.body, // Log what was actually received
+        received: req.body,
       });
-    }
-    console.log("Contact form data:");
-    // Validate input
-    if (!firstName || !lastName || !email || !message) {
-      return res.status(400).json({ error: "All fields are required" });
     }
 
     // Email options
@@ -179,7 +174,8 @@ app.post("/contact", async (req, res) => {
     };
 
     // Send email
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.messageId);
 
     // Send confirmation email to user
     const userMailOptions = {
@@ -202,14 +198,32 @@ app.post("/contact", async (req, res) => {
       `,
     };
 
-    await transporter.sendMail(userMailOptions);
+    const userInfo = await transporter.sendMail(userMailOptions);
+    console.log("Confirmation email sent:", userInfo.messageId);
 
     res.status(200).json({ message: "Message sent successfully" });
   } catch (error) {
     console.error("Error sending contact form:", error);
-    res.status(500).json({ error: "Failed to send message" });
+    res.status(500).json({
+      error: "Failed to send message",
+      details: error.message,
+    });
   }
 });
+
+// Error handling
+app.use(notFound);
+app.use(errorHandler);
+// Contact form endpoint
+// Contact form endpoint
+// const transporter = nodemailer.createTransport({
+//   host: process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io",
+//   port: process.env.MAILTRAP_PORT || 2525,
+//   auth: {
+//     user: process.env.MAILTRAP_USER || "your-mailtrap-user",
+//     pass: process.env.MAILTRAP_PASS || "your-mailtrap-pass",
+//   },
+// });
 
 // Server configuration
 const PORT = process.env.PORT || 3000;

@@ -498,6 +498,115 @@ class AppointmentService {
       throw new ApiError(500, "Failed to fetch support staff information");
     }
   }
+  async checkInAppointment(appointmentId, userId) {
+    try {
+      // First verify the appointment exists
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+      });
+
+      if (!appointment) {
+        throw new ApiError(404, "Appointment not found");
+      }
+
+      // Verify the appointment is in a state that can be checked in
+      if (
+        appointment.status !== "CONFIRMED" &&
+        appointment.status !== "PENDING"
+      ) {
+        throw new ApiError(
+          400,
+          `Appointment cannot be checked in from ${appointment.status} status`
+        );
+      }
+
+      // Update the appointment
+      const updatedAppointment = await this.prisma.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: "CHECKEDIN",
+          checkedIn: true,
+          checkedInAt: new Date(),
+        },
+        include: {
+          student: { include: { profile: true } },
+          provider: { include: { profile: true } },
+          support: { include: { profile: true } },
+        },
+      });
+
+      // Create a history record
+      await this.prisma.appointmentHistory.create({
+        data: {
+          appointmentId: appointmentId,
+          status: "CHECKEDIN",
+          changedById: userId,
+        },
+      });
+
+      return updatedAppointment;
+    } catch (error) {
+      logger.error(`Failed to check in appointment ${appointmentId}:`, error);
+
+      // Handle specific errors
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2025") {
+          throw new ApiError(404, "Appointment not found");
+        }
+      }
+
+      throw new ApiError(500, "Failed to check in appointment");
+    }
+  }
+  async searchAppointments(searchTerm) {
+    try {
+      if (!searchTerm) {
+        throw new ApiError(400, "Search query is required");
+      }
+
+      const appointments = await this.prisma.appointment.findMany({
+        where: {
+          OR: [
+            { id: { contains: searchTerm, mode: "insensitive" } },
+            {
+              student: {
+                profile: {
+                  OR: [
+                    {
+                      firstName: { contains: searchTerm, mode: "insensitive" },
+                    },
+                    { lastName: { contains: searchTerm, mode: "insensitive" } },
+                    { phone: { contains: searchTerm, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+            {
+              student: {
+                studentId: { contains: searchTerm, mode: "insensitive" },
+              },
+            },
+          ],
+        },
+        include: {
+          student: { include: { profile: true } },
+          provider: { include: { profile: true } },
+          support: { include: { profile: true } },
+        },
+        orderBy: { startTime: "desc" },
+        take: 10,
+      });
+
+      return appointments;
+    } catch (error) {
+      logger.error("Failed to search appointments:", error);
+      throw new ApiError(500, "Failed to search appointments");
+    }
+  }
 }
 
 module.exports = new AppointmentService();

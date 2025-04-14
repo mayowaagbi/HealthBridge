@@ -35,6 +35,7 @@ import {
 } from "recharts";
 import api from "../../api";
 import MentalHealthResources from "../../components/Dashboard/MentalHealthResources";
+import ThemeToggle from "../../components/ThemeToggle";
 export default function HealthcareProviderDashboard() {
   const [dashboardStats, setDashboardStats] = useState({
     totalStudents: 0,
@@ -88,13 +89,12 @@ export default function HealthcareProviderDashboard() {
           className="flex items-center justify-center"
           to="/healthcare-provider"
         >
-          <span className="sr-only">
-            Campus Health Management System - Healthcare Provider
-          </span>
+          <span className="sr-only">HealthBridge - Healthcare Provider</span>
           <Heart className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-lg font-semibold">CHMS Provider</span>
+          <span className="ml-2 text-lg font-semibold">HB Provider</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
+          <ThemeToggle />
           <Link
             className="text-sm font-medium hover:underline underline-offset-4"
             to="/healthcare-provider/patients"

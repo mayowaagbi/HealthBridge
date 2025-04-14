@@ -416,6 +416,41 @@ class AppointmentController {
       errorResponse(res, error.message, error.statusCode || 500);
     }
   }
+  async appointmentCheckIn(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id; // Get the logged-in user's ID
+      const appointmentId = id; // Assuming the appointment ID is passed in the URL
+      const appointment = await AppointmentService.getAppointmentById(id);
+
+      if (!appointment) {
+        throw new ApiError(404, "Appointment not found");
+      }
+
+      const updatedAppointment = await AppointmentService.checkInAppointment(
+        appointmentId,
+        userId
+      );
+      successResponse(res, updatedAppointment);
+    } catch (error) {
+      errorResponse(res, error.message, error.statusCode || 500);
+    }
+  }
+  async searchAppointments(req, res) {
+    try {
+      const { query } = req.query;
+      if (!query) {
+        return errorResponse(res, "Search query is required", 400);
+      }
+
+      const appointments = await AppointmentService.getSearchAppointments(
+        query
+      );
+      successResponse(res, { appointments });
+    } catch (error) {
+      errorResponse(res, error.message, error.statusCode || 500);
+    }
+  }
 }
 
 module.exports = new AppointmentController();

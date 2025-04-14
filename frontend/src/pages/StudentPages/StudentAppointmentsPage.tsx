@@ -297,7 +297,7 @@ export default function StudentAppointmentPage() {
           to="/student/dashboard"
         >
           <Heart className="h-6 w-6 text-primary" />
-          <span className="ml-2 text-lg font-semibold">CHMS</span>
+          <span className="ml-2 text-lg font-semibold">HealthBridge</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           <Link

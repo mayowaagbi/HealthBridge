@@ -199,7 +199,7 @@ export default function App() {
         <GlobalStateProvider>
           <BrowserRouter>
             <Toaster position="bottom-right" />
-            {/* {userRole === "STUDENT" ? (
+            {userRole === "STUDENT" ? (
               <ErrorBoundary
                 fallbackRender={({ error, resetErrorBoundary }) => (
                   <div role="alert">
@@ -214,7 +214,7 @@ export default function App() {
                   apiKey="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"
                 />
               </ErrorBoundary>
-            ) : null} */}
+            ) : null}
             <div className="toast-container">
               {notifications.map((notification) => (
                 <Toast

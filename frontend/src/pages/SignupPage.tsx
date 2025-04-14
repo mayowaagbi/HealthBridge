@@ -113,7 +113,7 @@ export default function SignupPage() {
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
             <CardDescription>
-              Create your account for the HealthBridge
+              Create your account for HealthBridge
             </CardDescription>
           </CardHeader>
           <CardContent>
