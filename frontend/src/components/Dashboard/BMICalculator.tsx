@@ -121,6 +121,21 @@ const BMICalculator: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
+          <Label>Unit</Label>
+          <Select
+            value={unit}
+            onValueChange={(val) => setUnit(val as "metric" | "imperial")}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="metric">Metric (kg/cm)</SelectItem>
+              <SelectItem value="imperial">Imperial (lbs/inches)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label>Height ({unit === "metric" ? "cm" : "inches"})</Label>
           <Input
             type="number"
@@ -138,22 +153,6 @@ const BMICalculator: React.FC = () => {
             onChange={(e) => setWeight(e.target.value)}
             placeholder="Enter your weight"
           />
-        </div>
-
-        <div>
-          <Label>Unit</Label>
-          <Select
-            value={unit}
-            onValueChange={(val) => setUnit(val as "metric" | "imperial")}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select unit" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="metric">Metric (kg/cm)</SelectItem>
-              <SelectItem value="imperial">Imperial (lbs/inches)</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <Button

@@ -20,21 +20,21 @@ interface Goal {
   progress: number;
 }
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
+interface WaterGoalResponse {
+  id: string;
+  userId: string;
+  target: number;
+  current: number;
+  date: string;
 }
 
-interface WaterGoal {
-  current: number;
-  target: number;
-  progress: number;
-}
-
-interface StepGoal {
-  current: number;
-  target: number;
-  progress: number;
+interface StepsGoalResponse {
+  success: boolean;
+  data: {
+    current: number;
+    target: number;
+    progress: number;
+  };
 }
 
 export default function CurrentGoals() {
@@ -73,28 +73,49 @@ export default function CurrentGoals() {
       try {
         const [waterRes, stepsRes] = await Promise.allSettled([
           fetchWithAuth("http://localhost:3000/api/water/progress"),
-          fetchWithAuth("http://localhost:3000/api/geo/progress"), // Fixed endpoint
+          fetchWithAuth("http://localhost:3000/api/geo/progress"),
         ]);
 
-        // Handle water data
-        const waterData: ApiResponse<WaterGoal> =
-          (waterRes.status === "fulfilled" && waterRes.value) || {};
+        console.log("waterRes", waterRes);
+        console.log("stepsRes", stepsRes);
 
-        const waterGoal = waterData.data || {
+        // Extract water data from the response structure
+        let waterGoal = {
           current: 0,
           target: MIN_WATER_ML,
           progress: 0,
         };
 
-        // Handle step data
-        const stepsData: ApiResponse<StepGoal> =
-          (stepsRes.status === "fulfilled" && stepsRes.value) || {};
+        if (waterRes.status === "fulfilled" && waterRes.value) {
+          const waterData = waterRes.value as WaterGoalResponse;
+          waterGoal = {
+            current: getSafeNumber(waterData.current, 0),
+            target: getSafeNumber(waterData.target, MIN_WATER_ML),
+            // Calculate progress as percentage
+            progress:
+              waterData.target > 0
+                ? (waterData.current / waterData.target) * 100
+                : 0,
+          };
+        }
 
-        const stepGoal = stepsData.data || {
+        // Extract steps data from the response structure
+        let stepGoal = {
           current: 0,
           target: MIN_STEPS,
           progress: 0,
         };
+
+        if (stepsRes.status === "fulfilled" && stepsRes.value) {
+          const stepsData = stepsRes.value as StepsGoalResponse;
+          if (stepsData.success && stepsData.data) {
+            stepGoal = {
+              current: getSafeNumber(stepsData.data.current, 0),
+              target: getSafeNumber(stepsData.data.target, MIN_STEPS),
+              progress: getSafeNumber(stepsData.data.progress, 0),
+            };
+          }
+        }
 
         // Static sleep data
         const sleepGoal: Goal = {
@@ -107,15 +128,15 @@ export default function CurrentGoals() {
         setGoals([
           {
             name: "Daily Steps",
-            current: getSafeNumber(stepGoal.current, 0),
-            target: getSafeNumber(stepGoal.target, MIN_STEPS),
-            progress: getSafeNumber(stepGoal.progress, 0),
+            current: stepGoal.current,
+            target: stepGoal.target,
+            progress: stepGoal.progress,
           },
           {
             name: "Water Intake (L)",
-            current: getSafeNumber(waterGoal.current, 0) / 1000,
-            target: getSafeNumber(waterGoal.target, MIN_WATER_ML) / 1000,
-            progress: getSafeNumber(waterGoal.progress, 0),
+            current: waterGoal.current / 1000,
+            target: waterGoal.target / 1000,
+            progress: waterGoal.progress,
           },
           sleepGoal,
         ]);

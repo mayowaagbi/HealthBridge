@@ -147,8 +147,7 @@ export default function LoginPage() {
       toast.success("Login successful!");
     } catch (error) {
       toast.error(
-        (error as any).response?.data?.message ||
-          "Login failed. Please try again."
+        (error as any).response?.data?.message || "Password or Email incorrect."
       );
       console.error("Login error:", error);
     }
@@ -188,7 +187,7 @@ export default function LoginPage() {
           <div className="text-center">
             <Heart className="mx-auto h-12 w-12 text-primary" />
             <h1 className="mt-4 text-2xl font-bold text-black dark:text-white">
-              Login to Health Bridge
+              Login to HealthBridge
             </h1>
           </div>
 
