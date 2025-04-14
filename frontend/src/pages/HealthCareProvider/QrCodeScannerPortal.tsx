@@ -22,6 +22,7 @@ import { Badge } from "../../components/ui/badge";
 import { Loader2, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Input } from "../../components/ui/input";
 import api from "../../api";
 
 interface Appointment {
@@ -70,7 +71,14 @@ const QrCodeScannerPortal: React.FC = () => {
   const [scanResult, setScanResult] = useState<CheckInResult | null>(null);
   const [processingCheckIn, setProcessingCheckIn] = useState(false);
   const [selectedCamera, setSelectedCamera] = useState<string>("environment");
+  const [manualMode, setManualMode] = useState(false);
+  const [appointmentIdInput, setAppointmentIdInput] = useState("");
+  const [searchResults, setSearchResults] = useState<Appointment[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
   const formatDateTime = (dateString: string) => {
     if (!dateString) return "No date available";
 
@@ -151,7 +159,7 @@ const QrCodeScannerPortal: React.FC = () => {
       console.log("Processing check-in for appointment:", appointmentId);
 
       const response = await api.post(
-        `/appointments/${appointmentId}/check-in`
+        `/api/appointments/${appointmentId}/check-in`
       );
 
       setScanResult({
@@ -176,8 +184,159 @@ const QrCodeScannerPortal: React.FC = () => {
     }
   };
 
-  const manualCheckIn = () => {
-    setError("Manual check-in feature not implemented yet");
+  const handleManualCheckIn = () => {
+    setManualMode(true);
+    setSearchResults([]);
+    setSelectedAppointment(null);
+    setError(null);
+  };
+
+  // const handleSearchAppointments = async () => {
+  //   if (!appointmentIdInput.trim()) {
+  //     setError("Please enter a student ID or appointment ID");
+  //     return;
+  //   }
+
+  //   setSearching(true);
+  //   setError(null);
+
+  //   try {
+  //     const accessToken = localStorage.getItem("accessToken");
+  //     if (!accessToken) {
+  //       throw new Error("Access token not found.");
+  //     }
+
+  //     const response = await api.get(
+  //       `/api/appointments/search?query=${appointmentIdInput}`,
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${accessToken}`,
+  //         },
+  //       }
+  //     );
+
+  //     // Fix for error at line 218: Check if response.data and response.data.appointments exist
+  //     if (response.data && response.data.appointments) {
+  //       setSearchResults(response.data.appointments);
+
+  //       if (response.data.appointments.length === 0) {
+  //         setError("No appointments found matching your search");
+  //       }
+  //     } else {
+  //       // Handle case where the response doesn't have the expected structure
+  //       setSearchResults([]);
+  //       setError("Invalid response from server");
+  //       console.error("Invalid API response:", response);
+  //     }
+  //   } catch (err) {
+  //     console.error("Search error:", err);
+  //     const errorMessage = axios.isAxiosError(err)
+  //       ? err.response?.data?.message || "Error searching appointments"
+  //       : err instanceof Error
+  //       ? err.message
+  //       : "Failed to search appointments";
+  //     setError(errorMessage);
+  //     setSearchResults([]); // Ensure searchResults is always an array
+  //   } finally {
+  //     setSearching(false);
+  //   }
+  // };
+  const handleSearchAppointments = async () => {
+    if (!appointmentIdInput.trim()) {
+      setError("Please enter a student ID or appointment ID");
+      return;
+    }
+
+    setSearching(true);
+    setError(null);
+
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (!accessToken) {
+        throw new Error("Access token not found.");
+      }
+
+      const response = await api.get(
+        `/api/appointments/search?query=${appointmentIdInput}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      // Fix: The correct data path is response.data.data.appointments
+      if (
+        response.data &&
+        response.data.data &&
+        response.data.data.appointments
+      ) {
+        setSearchResults(response.data.data.appointments);
+
+        if (response.data.data.appointments.length === 0) {
+          setError("No appointments found matching your search");
+        }
+      } else {
+        // Handle case where the response doesn't have the expected structure
+        setSearchResults([]);
+        setError("Invalid response from server");
+        console.error("Invalid API response:", response);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message || "Error searching appointments"
+        : err instanceof Error
+        ? err.message
+        : "Failed to search appointments";
+      setError(errorMessage);
+      setSearchResults([]); // Ensure searchResults is always an array
+    } finally {
+      setSearching(false);
+    }
+  };
+  const handleSelectAppointment = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+  };
+
+  const confirmManualCheckIn = async () => {
+    if (!selectedAppointment) return;
+
+    setProcessingCheckIn(true);
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      if (!accessToken) {
+        throw new Error("Access token not found.");
+      }
+
+      const response = await api.patch(
+        `/api/appointments/${selectedAppointment.id}/check-in`,
+        {}, // Empty payload object for POST
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      setScanResult({
+        success: true,
+        message: "Manual check-in successful",
+        appointment: response.data.appointment,
+      });
+      setManualMode(false);
+      setSelectedAppointment(null);
+    } catch (err) {
+      console.error("Manual check-in error:", err);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message || "Server error during check-in"
+        : err instanceof Error
+        ? err.message
+        : "Manual check-in failed";
+      setError(errorMessage);
+    } finally {
+      setProcessingCheckIn(false);
+    }
   };
 
   const resetScanner = () => {
@@ -201,7 +360,7 @@ const QrCodeScannerPortal: React.FC = () => {
       <header className="px-4 lg:px-6 h-14 flex items-center">
         <Link
           className="flex items-center justify-center"
-          to="/healthcare-provider"
+          to="/healthcare-provider/dashboard"
         >
           <span className="sr-only">
             Campus Health Management System - Healthcare Provider
@@ -455,14 +614,176 @@ const QrCodeScannerPortal: React.FC = () => {
 
               <TabsContent value="manual">
                 <CardContent>
-                  <div className="p-8 flex flex-col items-center justify-center">
-                    <p className="text-center text-gray-500 mb-4">
-                      Use manual check-in if the QR code is unavailable
-                    </p>
-                    <Button onClick={manualCheckIn} className="w-full">
-                      Enter Appointment Details
-                    </Button>
-                  </div>
+                  {!manualMode ? (
+                    <div className="p-8 flex flex-col items-center justify-center">
+                      <p className="text-center text-gray-500 mb-4">
+                        Use manual check-in if the QR code is unavailable
+                      </p>
+                      <Button onClick={handleManualCheckIn} className="w-full">
+                        Enter Appointment Details
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label
+                          htmlFor="appointment-search"
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                          Search by Student ID or Appointment ID
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="appointment-search"
+                            value={appointmentIdInput}
+                            onChange={(e) =>
+                              setAppointmentIdInput(e.target.value)
+                            }
+                            placeholder="Enter student ID or appointment ID"
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={handleSearchAppointments}
+                            disabled={searching}
+                          >
+                            {searching ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              "Search"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {error && (
+                        <Alert variant="destructive">
+                          <XCircle className="h-4 w-4" />
+                          <AlertTitle>Error</AlertTitle>
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      {searchResults && searchResults.length > 0 && (
+                        <div className="space-y-2">
+                          <h3 className="font-medium">Select Appointment</h3>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {searchResults.map((appointment) => (
+                              <Card
+                                key={appointment.id}
+                                className={`cursor-pointer transition-colors ${
+                                  selectedAppointment?.id === appointment.id
+                                    ? "bg-primary/10 border-primary"
+                                    : "hover:bg-gray-50"
+                                }`}
+                                onClick={() =>
+                                  handleSelectAppointment(appointment)
+                                }
+                              >
+                                <CardContent className="p-4">
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <p className="font-medium">
+                                        {appointment.service ||
+                                          "No service specified"}
+                                      </p>
+                                      <p className="text-sm text-gray-500">
+                                        {appointment.student?.profile
+                                          ?.firstName || ""}{" "}
+                                        {appointment.student?.profile
+                                          ?.lastName || ""}
+                                      </p>
+                                    </div>
+                                    <Badge
+                                      variant={
+                                        appointment.checkedIn
+                                          ? "default"
+                                          : "outline"
+                                      }
+                                    >
+                                      {appointment.checkedIn
+                                        ? "Checked In"
+                                        : "Pending"}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {formatDateTime(appointment.startTime)}
+                                  </p>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedAppointment && (
+                        <div className="mt-4 space-y-2 p-4 bg-gray-50 rounded-md">
+                          <div className="flex justify-between items-center">
+                            <h3 className="font-medium">
+                              {selectedAppointment.service ||
+                                "No service specified"}
+                            </h3>
+                            <Badge
+                              variant={
+                                selectedAppointment.checkedIn
+                                  ? "default"
+                                  : "outline"
+                              }
+                            >
+                              {selectedAppointment.checkedIn
+                                ? "Checked In"
+                                : "Pending"}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            <p>
+                              Student:{" "}
+                              {selectedAppointment.student?.profile
+                                ?.firstName || ""}{" "}
+                              {selectedAppointment.student?.profile?.lastName ||
+                                ""}
+                            </p>
+                            <p>
+                              Time:{" "}
+                              {formatDateTime(selectedAppointment.startTime)}
+                            </p>
+                            {selectedAppointment.provider && (
+                              <p>
+                                Provider:{" "}
+                                {selectedAppointment.provider.profile
+                                  ?.firstName || ""}{" "}
+                                {selectedAppointment.provider.profile
+                                  ?.lastName || ""}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setManualMode(false);
+                            setSelectedAppointment(null);
+                            setError(null);
+                          }}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={confirmManualCheckIn}
+                          disabled={!selectedAppointment || processingCheckIn}
+                          className="flex-1"
+                        >
+                          {processingCheckIn ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Confirm Check-In
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </TabsContent>
             </Tabs>

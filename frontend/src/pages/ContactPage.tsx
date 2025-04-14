@@ -8,7 +8,7 @@ import { Heart, Mail, Phone, MapPin } from "lucide-react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import axios from "axios";
-import api from "../api";
+// import api from "../api";
 
 export default function ContactPage() {
   const [formStatus, setFormStatus] = useState<
@@ -47,14 +47,15 @@ export default function ContactPage() {
 
     try {
       console.log("Form data:", formData); // Log the form data for debugging
-      const response = await api.post("/contact", formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.post(
+        "http://localhost:3000/api/contact",
+        formData
+      );
 
       if (response.status === 200) {
         setFormStatus("submitted");
+        // Clear the form
+        form.reset();
       } else {
         throw new Error("Failed to send message");
       }
@@ -110,6 +111,7 @@ export default function ContactPage() {
                       </label>
                       <Input
                         id="first-name"
+                        name="first-name"
                         placeholder="John"
                         required
                         className="bg-white dark:bg-gray-700 text-black dark:text-white"
@@ -124,6 +126,7 @@ export default function ContactPage() {
                       </label>
                       <Input
                         id="last-name"
+                        name="last-name"
                         placeholder="Doe"
                         required
                         className="bg-white dark:bg-gray-700 text-black dark:text-white"
@@ -139,6 +142,7 @@ export default function ContactPage() {
                     </label>
                     <Input
                       id="email"
+                      name="email"
                       placeholder="johndoe@example.com"
                       type="email"
                       required
@@ -155,6 +159,7 @@ export default function ContactPage() {
                     <Textarea
                       className="min-h-[100px] bg-white dark:bg-gray-700 text-black dark:text-white"
                       id="message"
+                      name="message"
                       placeholder="Enter your message here"
                       required
                     />

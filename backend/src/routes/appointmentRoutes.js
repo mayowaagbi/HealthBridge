@@ -59,6 +59,17 @@ router.patch(
   AppointmentController.updateAppointmentStatus
 );
 
+router.patch(
+  "/:id/check-in",
+  authorize("PROVIDER"),
+  AppointmentController.appointmentCheckIn
+);
+router.get(
+  "/search",
+  authorize("PROVIDER"),
+  AppointmentController.searchAppointments
+);
+
 // router.patch(
 //   "/:id/assign-support",
 //   authorize("PROVIDER"),

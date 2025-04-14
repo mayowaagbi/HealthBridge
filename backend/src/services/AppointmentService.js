@@ -280,9 +280,25 @@ class AppointmentService {
       throw new ApiError(500, "Failed to fetch appointments");
     }
   }
+  async checkInAppointment(appointmentId, userId) {
+    try {
+      return await Appointment.checkInAppointment(appointmentId, userId);
+    } catch (error) {
+      console.error("Failed to check in appointment:", error);
+      throw new ApiError(500, "Failed to check in appointment");
+    }
+  }
   async getsupportbyappoinmentid(id) {
     try {
       return await Appointment.getsupportbyappoinmentid(id);
+    } catch (error) {
+      console.error("Failed to fetch appointments:", error);
+      throw new ApiError(500, "Failed to fetch appointments");
+    }
+  }
+  async getSearchAppointments(searchTerm) {
+    try {
+      return await Appointment.searchAppointments(searchTerm);
     } catch (error) {
       console.error("Failed to fetch appointments:", error);
       throw new ApiError(500, "Failed to fetch appointments");

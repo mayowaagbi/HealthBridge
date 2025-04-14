@@ -242,7 +242,45 @@ const sendAppointmentConfirmation = async (user, appointment) => {
 
   return sendEmail(user.email, "Appointment Confirmation", html);
 };
+const submitContactForm = async (req, res) => {
+  try {
+    // Validate input
+    const { errors, isValid } = validateContactFormInput(req.body);
+    if (!isValid) {
+      logger.warn("Contact form validation failed", { errors });
+      return res.status(400).json({ errors });
+    }
 
+    const { firstName, lastName, email, message } = req.body;
+
+    // Save to database
+    const submission = await ContactService.createSubmission({
+      firstName,
+      lastName,
+      email,
+      message,
+    });
+
+    // Send emails
+    const emailResults = await mailer.sendContactEmails(submission);
+
+    logger.info("Contact form processed successfully", {
+      submissionId: submission.id,
+      emailResults,
+    });
+
+    res.status(200).json({
+      message: "Message sent successfully",
+      submissionId: submission.id,
+    });
+  } catch (error) {
+    logger.error("Error processing contact form:", error);
+    res.status(500).json({
+      message: "Failed to process contact form",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
 /**
  * Send Appointment Status Update Email
  * @param {Object} user - Recipient's user data
@@ -274,4 +312,5 @@ module.exports = {
   sendEmail,
   sendAppointmentConfirmation,
   sendAppointmentStatusEmail,
+  submitContactForm,
 };
